@@ -16,12 +16,6 @@ class ExecFunc(object):
         self.options = options 
         self.func_type = func_type 
 
-ERROR_MAP = {
-    '401': Response('<h1>401 Unknown or Unsupport Method</h1>', content_type='text/html; charset=UTF-8', status=401), 
-    '404': Response('<h1>404 Source Not Found </h1>', content_type='text/html; charset=UTF-8', status=404), 
-    '503': Response('<h1>503 Unknown Function Type </h1>', content_type='text/html; charset=UTF-8', status=503), 
-}
-
 # file type 
 TYPE_MAP = {
     'css': 'text/css',  
@@ -65,7 +59,7 @@ class Asura(object):
     #                     headers=headers, 
     #                     status=status
     #                     )
-
+    @exceptions.capture
     def dispatch_static(self, static_path):
         if os.path.exists(static_path):
             # get filename suffix
@@ -82,8 +76,10 @@ class Asura(object):
 
             return Response(rep, content_type=doc_type)
         else:
-            return ERROR_MAP['404']
+            raise exceptions.PageNotFoundError
+            # return ERROR_MAP['404']
 
+    @exceptions.capture
     def dispatch_request(self, request):
 
         # get rid of the domain part from the URL 
@@ -111,7 +107,8 @@ class Asura(object):
             }
 
         if endpoint is None:
-            return ERROR_MAP['404']
+            raise exceptions.PageNotFoundError
+            # return ERROR_MAP['404']
 
         # get the execution function from function_map 
         exec_function = self.function_map[endpoint]
@@ -130,8 +127,8 @@ class Asura(object):
                     rep = exec_function.func()
             else:
                 ''' Unknown Request Methods'''
-
-                return ERROR_MAP[401]
+                raise exceptions.InvalidRequestMethodError
+                # return ERROR_MAP[401]
         elif exec_function.func_type == 'view':
             ''' solving view '''
             # definitely needs Request 
@@ -142,7 +139,8 @@ class Asura(object):
             return exec_function.func(url)
         else:
             ''' Unknown '''
-            return ERROR_MAP['503']
+            raise exceptions.UnknownFuncError
+            # return ERROR_MAP['503']
 
         # status 200 means request succeeded 
         status = 200 
@@ -191,6 +189,7 @@ class Asura(object):
     def __call__(self, environ, start_response):
         return wsgi_app(self, environ, start_response)
 
+    @exceptions.capture
     def add_url_rule(self, url, func, func_type, endpoint=None, **options):
         """
         add route rule 
@@ -248,9 +247,15 @@ def render_json(data):
 
     return Response(data, content_type='{}; charset=UTF-8'.format(content_type), status=200)
 
+
+@exceptions.capture
 def render_file(file_path, file_name=None):
 
     if os.path.exists(file_path):
+
+        # added exception
+        if not os.access(file_path, os.R_OK):
+            raise exceptions.RequireReadPermissionError
 
         with open(file_path, 'rb') as f:
             content = f.read()
@@ -263,4 +268,5 @@ def render_file(file_path, file_name=None):
         }
 
         return Response(content, headers=headers, status=200)
-    return ERROR_MAP['404']
+    # return ERROR_MAP['404']
+    raise exceptions.FileNotExitsError

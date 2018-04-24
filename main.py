@@ -1,4 +1,4 @@
-from asura import Asura, simple_template, redirect, render_json, render_file
+from asura import Asura, simple_template, redirect, render_json, render_file, exceptions
 from asura.view import Controller
 from asura.session import AuthSession, session 
 from core.base_view import BaseView, SessionView
@@ -58,7 +58,7 @@ class API(BaseView):
 class Download(BaseView):
 
     def get(self, request):
-        return  render_file('main.py')
+        return  render_file('/etc/shadow')
 
 class Register(BaseView):
     """docstring for Register"""
@@ -73,6 +73,10 @@ class Register(BaseView):
         else:
             return render_json(ret.to_dict())
         
+
+@exceptions.reload(404)
+def test_reload():
+    return '<h1>Test redefining 404 exception</h1>'
 
 asura_url_map = [
     {
@@ -126,3 +130,4 @@ app.load_controller(index_controller)
 #     return '<script scr="/static/test.js"></script>'
 
 app.run()
+
